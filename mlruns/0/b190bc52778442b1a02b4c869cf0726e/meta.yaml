@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/b190bc52778442b1a02b4c869cf0726e/artifacts
+end_time: 1743374716078
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: b190bc52778442b1a02b4c869cf0726e
+run_name: serious-hog-820
+run_uuid: b190bc52778442b1a02b4c869cf0726e
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374713359
+status: 3
+tags: []
+user_id: serdarc

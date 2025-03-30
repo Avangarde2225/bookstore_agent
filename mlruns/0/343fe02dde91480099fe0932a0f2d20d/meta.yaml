@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/343fe02dde91480099fe0932a0f2d20d/artifacts
+end_time: 1743374723115
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 343fe02dde91480099fe0932a0f2d20d
+run_name: shivering-bat-839
+run_uuid: 343fe02dde91480099fe0932a0f2d20d
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374720658
+status: 3
+tags: []
+user_id: serdarc

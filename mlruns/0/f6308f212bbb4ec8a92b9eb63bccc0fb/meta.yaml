@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/f6308f212bbb4ec8a92b9eb63bccc0fb/artifacts
+end_time: 1743374689304
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: f6308f212bbb4ec8a92b9eb63bccc0fb
+run_name: painted-lamb-528
+run_uuid: f6308f212bbb4ec8a92b9eb63bccc0fb
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374688792
+status: 3
+tags: []
+user_id: serdarc

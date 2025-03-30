@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/bf6f1049b39a4a8a8d52a2f0a5dac0ac/artifacts
+end_time: 1743365935239
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: bf6f1049b39a4a8a8d52a2f0a5dac0ac
+run_name: grandiose-deer-275
+run_uuid: bf6f1049b39a4a8a8d52a2f0a5dac0ac
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743365934592
+status: 3
+tags: []
+user_id: serdarc

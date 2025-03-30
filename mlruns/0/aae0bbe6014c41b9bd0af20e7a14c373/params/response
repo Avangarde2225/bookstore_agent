@@ -1,0 +1,9 @@
+```json
+[
+  {
+    "endpoint": "/Account/v1/Authorized",
+    "method": "POST",
+    "parameters": []
+  }
+]
+```

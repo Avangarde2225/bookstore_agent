@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/9023f74c625640158e562638cfdd026b/artifacts
+end_time: 1743374684184
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 9023f74c625640158e562638cfdd026b
+run_name: learned-sponge-688
+run_uuid: 9023f74c625640158e562638cfdd026b
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374683123
+status: 3
+tags: []
+user_id: serdarc

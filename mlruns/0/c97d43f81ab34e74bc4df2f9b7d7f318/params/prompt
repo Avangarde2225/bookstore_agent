@@ -1,0 +1,18 @@
+
+        Generate a comprehensive pytest-bdd Gherkin feature file for the endpoint "/BookStore/v1/Book" with HTTP method "GET".
+        Parameters: [].
+
+        Create meaningful scenarios that:
+        1. Test the basic functionality of the endpoint
+        2. Include edge cases and error conditions
+        3. Consider the business context and user workflows
+        4. Follow a logical flow of operations
+
+        Format strictly as a .feature file with:
+        - Feature: A clear description of the endpoint's purpose
+        - Background: Common setup steps if needed
+        - Scenarios: Multiple test cases with Given/When/Then steps
+        - Use tables where appropriate for data variations
+
+        Output only the feature text, no extra commentary.
+        

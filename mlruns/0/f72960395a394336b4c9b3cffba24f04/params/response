@@ -1,0 +1,14 @@
+[
+  {
+    "endpoint": "/Account/v1/User/{UUID}",
+    "method": "DELETE",
+    "parameters": [
+      {
+        "name": "UUID",
+        "in": "path",
+        "required": true,
+        "description": "Unique identifier for the user"
+      }
+    ]
+  }
+]

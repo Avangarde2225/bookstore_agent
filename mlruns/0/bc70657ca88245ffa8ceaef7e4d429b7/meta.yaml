@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/bc70657ca88245ffa8ceaef7e4d429b7/artifacts
+end_time: 1743366134147
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: bc70657ca88245ffa8ceaef7e4d429b7
+run_name: hilarious-snail-635
+run_uuid: bc70657ca88245ffa8ceaef7e4d429b7
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743366133656
+status: 3
+tags: []
+user_id: serdarc

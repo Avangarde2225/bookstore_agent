@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/9d9b8e3d63174d25943651cde5fea185/artifacts
+end_time: 1743374696105
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 9d9b8e3d63174d25943651cde5fea185
+run_name: adventurous-colt-34
+run_uuid: 9d9b8e3d63174d25943651cde5fea185
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374692695
+status: 3
+tags: []
+user_id: serdarc

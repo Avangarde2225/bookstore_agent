@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/6633c0da34be4ded8ffb363bd9ffaf5a/artifacts
+end_time: 1743374687321
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 6633c0da34be4ded8ffb363bd9ffaf5a
+run_name: polite-hawk-769
+run_uuid: 6633c0da34be4ded8ffb363bd9ffaf5a
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374686815
+status: 3
+tags: []
+user_id: serdarc

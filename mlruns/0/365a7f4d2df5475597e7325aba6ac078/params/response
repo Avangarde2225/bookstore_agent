@@ -1,0 +1,7 @@
+[
+  {
+    "endpoint": "/BookStore/v1/Books",
+    "method": "DELETE",
+    "parameters": []
+  }
+]

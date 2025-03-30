@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/f5b0d4d482c84ebe8ac8f2003f2163fc/artifacts
+end_time: 1743374711179
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: f5b0d4d482c84ebe8ac8f2003f2163fc
+run_name: wise-moth-357
+run_uuid: f5b0d4d482c84ebe8ac8f2003f2163fc
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374705286
+status: 3
+tags: []
+user_id: serdarc

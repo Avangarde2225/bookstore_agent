@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/f72960395a394336b4c9b3cffba24f04/artifacts
+end_time: 1743374686137
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: f72960395a394336b4c9b3cffba24f04
+run_name: worried-ram-256
+run_uuid: f72960395a394336b4c9b3cffba24f04
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374685215
+status: 3
+tags: []
+user_id: serdarc

@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/31c299ee5b9c4abbbdee573d4461bbe0/artifacts
+end_time: 1743374713357
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 31c299ee5b9c4abbbdee573d4461bbe0
+run_name: loud-hawk-168
+run_uuid: 31c299ee5b9c4abbbdee573d4461bbe0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374711182
+status: 3
+tags: []
+user_id: serdarc

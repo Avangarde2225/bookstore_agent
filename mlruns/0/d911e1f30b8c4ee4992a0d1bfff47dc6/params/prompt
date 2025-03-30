@@ -1,0 +1,22 @@
+
+Below is a snippet of HTML from a Swagger UI.
+Extract all endpoint paths, HTTP methods, and any parameter info you can find.
+Return valid JSON in the format:
+[
+  {
+    "endpoint": "string",
+    "method": "GET/POST/PUT/DELETE/etc.",
+    "parameters": [
+      {
+        "name": "param_name",
+        "in": "path/query/header/etc.",
+        "required": true/false,
+        "description": "string"
+      }
+    ]
+  },
+  ...
+]
+
+HTML:
+<div class="opblock opblock-get" id="operations-Account-AccountV1UserByUserIdGet"><div class="opblock-summary opblock-summary-get"><button aria-label="get &#x200B;/Account&#x200B;/v1&#x200B;/User&#x200B;/{UUID}" aria-expanded="false" class="opblock-summary-control"><span class="opblock-summary-method">GET</span><span class="opblock-summary-path" data-path="/Account/v1/User/{UUID}"><a class="nostyle" href="#/Account/AccountV1UserByUserIdGet"><span>/Account<wbr/>/v1<wbr/>/User<wbr/>/{UUID}</span></a></span><div class="opblock-summary-description"/><svg class="arrow" width="20" height="20" aria-hidden="true" focusable="false"><use href="#large-arrow-down" xlink:href="#large-arrow-down"/></svg></button><button class="authorization__btn unlocked" aria-label="authorization button unlocked"><svg width="20" height="20"><use href="#unlocked" xlink:href="#unlocked"/></svg></button></div><noscript/></div>

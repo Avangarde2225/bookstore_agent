@@ -1,0 +1,14 @@
+[
+  {
+    "endpoint": "/BookStore/v1/Books/{ISBN}",
+    "method": "PUT",
+    "parameters": [
+      {
+        "name": "ISBN",
+        "in": "path",
+        "required": true,
+        "description": "string"
+      }
+    ]
+  }
+]

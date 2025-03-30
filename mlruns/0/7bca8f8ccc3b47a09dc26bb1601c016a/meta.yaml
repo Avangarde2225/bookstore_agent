@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/7bca8f8ccc3b47a09dc26bb1601c016a/artifacts
+end_time: 1743374698785
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 7bca8f8ccc3b47a09dc26bb1601c016a
+run_name: loud-crane-559
+run_uuid: 7bca8f8ccc3b47a09dc26bb1601c016a
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374696107
+status: 3
+tags: []
+user_id: serdarc

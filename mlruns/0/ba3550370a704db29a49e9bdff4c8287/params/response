@@ -1,0 +1,7 @@
+[
+  {
+    "endpoint": "/Account/v1/User",
+    "method": "POST",
+    "parameters": []
+  }
+]

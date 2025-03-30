@@ -1,0 +1,14 @@
+[
+  {
+    "endpoint": "/Account/v1/User/{UUID}",
+    "method": "GET",
+    "parameters": [
+      {
+        "name": "UUID",
+        "in": "path",
+        "required": true,
+        "description": "string"
+      }
+    ]
+  }
+]

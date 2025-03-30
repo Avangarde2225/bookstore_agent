@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/9b743c43b57b4013b5a8968d9c458809/artifacts
+end_time: 1743366131517
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 9b743c43b57b4013b5a8968d9c458809
+run_name: mysterious-moth-639
+run_uuid: 9b743c43b57b4013b5a8968d9c458809
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743366131000
+status: 3
+tags: []
+user_id: serdarc

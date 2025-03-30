@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/c97d43f81ab34e74bc4df2f9b7d7f318/artifacts
+end_time: 1743374718283
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: c97d43f81ab34e74bc4df2f9b7d7f318
+run_name: learned-carp-664
+run_uuid: c97d43f81ab34e74bc4df2f9b7d7f318
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374716080
+status: 3
+tags: []
+user_id: serdarc

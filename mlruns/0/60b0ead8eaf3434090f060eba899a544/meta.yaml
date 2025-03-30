@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/60b0ead8eaf3434090f060eba899a544/artifacts
+end_time: 1743374701827
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 60b0ead8eaf3434090f060eba899a544
+run_name: enchanting-wasp-58
+run_uuid: 60b0ead8eaf3434090f060eba899a544
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374698787
+status: 3
+tags: []
+user_id: serdarc

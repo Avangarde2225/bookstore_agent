@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/b8bfd7f1d4fe4dcd8b77318b6adac81f/artifacts
+end_time: 1743366134602
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: b8bfd7f1d4fe4dcd8b77318b6adac81f
+run_name: adorable-snake-486
+run_uuid: b8bfd7f1d4fe4dcd8b77318b6adac81f
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743366134149
+status: 3
+tags: []
+user_id: serdarc

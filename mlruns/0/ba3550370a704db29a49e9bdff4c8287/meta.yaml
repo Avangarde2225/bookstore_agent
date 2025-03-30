@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/ba3550370a704db29a49e9bdff4c8287/artifacts
+end_time: 1743374685213
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: ba3550370a704db29a49e9bdff4c8287
+run_name: inquisitive-hog-6
+run_uuid: ba3550370a704db29a49e9bdff4c8287
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374684701
+status: 3
+tags: []
+user_id: serdarc

@@ -1,0 +1,22 @@
+
+Below is a snippet of HTML from a Swagger UI.
+Extract all endpoint paths, HTTP methods, and any parameter info you can find.
+Return valid JSON in the format:
+[
+  {
+    "endpoint": "string",
+    "method": "GET/POST/PUT/DELETE/etc.",
+    "parameters": [
+      {
+        "name": "param_name",
+        "in": "path/query/header/etc.",
+        "required": true/false,
+        "description": "string"
+      }
+    ]
+  },
+  ...
+]
+
+HTML:
+<div class="opblock opblock-get" id="operations-BookStore-BookStoreV1BookGet"><div class="opblock-summary opblock-summary-get"><button aria-label="get &#x200B;/BookStore&#x200B;/v1&#x200B;/Book" aria-expanded="false" class="opblock-summary-control"><span class="opblock-summary-method">GET</span><span class="opblock-summary-path" data-path="/BookStore/v1/Book"><a class="nostyle" href="#/BookStore/BookStoreV1BookGet"><span>/BookStore<wbr/>/v1<wbr/>/Book</span></a></span><div class="opblock-summary-description"/><svg class="arrow" width="20" height="20" aria-hidden="true" focusable="false"><use href="#large-arrow-down" xlink:href="#large-arrow-down"/></svg></button><button class="authorization__btn unlocked" aria-label="authorization button unlocked"><svg width="20" height="20"><use href="#unlocked" xlink:href="#unlocked"/></svg></button></div><noscript/></div>

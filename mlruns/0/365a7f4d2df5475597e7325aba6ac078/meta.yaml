@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/serdarc/Desktop/bookstore_agent/mlruns/0/365a7f4d2df5475597e7325aba6ac078/artifacts
+end_time: 1743374688790
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 365a7f4d2df5475597e7325aba6ac078
+run_name: defiant-mole-548
+run_uuid: 365a7f4d2df5475597e7325aba6ac078
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743374688244
+status: 3
+tags: []
+user_id: serdarc
