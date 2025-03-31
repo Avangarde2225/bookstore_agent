@@ -1,0 +1,746 @@
+#!/usr/bin/env python3
+import os
+import json
+import openai
+import mlflow
+from dotenv import load_dotenv
+from mlflow_tracking import MLflowTracker
+from datetime import datetime
+import pandas as pd
+from pathlib import Path
+
+from requests_html import HTML, HTMLSession
+
+# Load environment variables from .env file
+load_dotenv()
+
+openai_api_key = os.getenv("OPENAI_API_KEY")
+
+# Initialize the tracker
+tracker = MLflowTracker()
+
+#############################################
+# 1. SCRAPE THE SWAGGER UI (HTML)
+#############################################
+
+def get_swagger_html(url: str) -> str:
+    """
+    Fetch the raw HTML from a Swagger UI page using requests-html.
+    If the page relies on JavaScript for rendering, .render() is used.
+    """
+    print("[DEBUG] Entering get_swagger_html")  # DEBUG STATEMENT
+
+    session = HTMLSession()
+    response = session.get(url)
+    
+    print("[DEBUG] HTTP status code:", response.status_code)  # DEBUG: Check if 200, etc.
+    
+    try:
+        # If the page uses JavaScript to dynamically load endpoints, we need .render().
+        # This requires a Chromium install. If the page is entirely static, you can skip render().
+        print("[DEBUG] Rendering HTML with requests-html...")  # DEBUG STATEMENT
+        response.html.render(timeout=60, sleep=5)  # Increased timeout and sleep
+        print("[DEBUG] Done rendering.")  # DEBUG STATEMENT
+    except Exception as e:
+        print(f"[WARNING] Failed to render JavaScript: {str(e)}")
+        print("[INFO] Continuing with static HTML content...")
+    
+    html_content = response.html.html
+    print("[DEBUG] Length of HTML content:", len(html_content))  # DEBUG: Checking how much data we got
+    
+    # Print a preview of the HTML content to verify we're getting the right content
+    print("[DEBUG] HTML Content Preview:")
+    print(html_content[:500])  # Print first 500 chars
+    
+    return html_content
+
+#print(get_swagger_html("https://bookstore.toolsqa.com/swagger/"))
+
+
+#############################################
+# 2. CHUNK THE HTML BY OPERATION BLOCKS
+#############################################
+
+def chunk_swagger_html(html_text: str):
+    """
+    Yields chunks of HTML, each corresponding to one endpoint or method.
+    In many Swagger UIs, each endpoint or operation is under a <div class="opblock">.
+    Adjust the selector if your HTML differs.
+    """
+    print("[DEBUG] Entering chunk_swagger_html")  # DEBUG STATEMENT
+
+    doc = HTML(html=html_text)
+    
+    # Try different common Swagger UI selectors
+    blocks = doc.find('div.opblock') or doc.find('div[class*="opblock"]') or doc.find('div[class*="operation"]')
+    
+    if not blocks:
+        # If no blocks found, try to find any div that might contain endpoint information
+        blocks = doc.find('div[class*="endpoint"]') or doc.find('div[class*="api"]')
+    
+    print("[DEBUG] Found", len(blocks), "blocks.")  # DEBUG: How many chunks?
+
+    if not blocks:
+        # If still no blocks found, print the HTML structure for debugging
+        print("[DEBUG] HTML Structure Preview:")
+        print(doc.html[:500])  # Print first 500 chars of HTML for debugging
+
+    for i, block in enumerate(blocks, start=1):
+        block_html = block.html
+        print(f"[DEBUG] Yielding chunk #{i}, length={len(block_html)}")  # DEBUG: Each chunk's size
+        yield block_html
+
+
+#############################################
+# 3. EXTRACT ENDPOINT INFO VIA LLM
+#############################################
+
+def extract_endpoint_info_via_llm(chunk_html: str, model_name="gpt-3.5-turbo") -> list:
+    """
+    Sends a prompt to the LLM to parse the chunked HTML from the Swagger UI.
+    Instructs the model to return JSON describing endpoints, methods, parameters, etc.
+    """
+    print("[DEBUG] Entering extract_endpoint_info_via_llm")  # DEBUG STATEMENT
+    print("[DEBUG] Model name:", model_name)  # DEBUG: Which model is being used?
+
+    openai.api_key = os.getenv("OPENAI_API_KEY", "")
+    if not openai.api_key:
+        raise RuntimeError("[ERROR] Missing OPENAI_API_KEY environment variable.")
+
+    # Print a small snippet of chunk_html to verify content
+    print("[DEBUG] chunk_html snippet:", chunk_html[:100].replace("\n", " "), "...")  # Just a preview
+
+    # Dynamic prompt that focuses on structure rather than specific endpoints
+    prompt_text = f"""
+You are an API documentation analyzer. Below is a snippet of HTML from a Swagger UI.
+Your task is to extract all endpoint information in a structured format.
+
+Focus on:
+1. Endpoint paths
+2. HTTP methods
+3. Parameters (including their types, locations, and requirements)
+4. Response schemas (if available)
+
+Return valid JSON in this format:
+[
+  {{
+    "endpoint": "string",
+    "method": "GET/POST/PUT/DELETE/etc.",
+    "parameters": [
+      {{
+        "name": "param_name",
+        "in": "path/query/header/etc.",
+        "required": true/false,
+        "type": "string/number/etc.",
+        "description": "string"
+      }}
+    ],
+    "responses": [
+      {{
+        "code": "200/400/etc.",
+        "description": "string",
+        "schema": "string (if available)"
+      }}
+    ]
+  }}
+]
+
+HTML:
+{chunk_html}
+"""
+
+    print("[DEBUG] Sending prompt to LLM, prompt length:", len(prompt_text))  # DEBUG: Prompt size
+
+    with mlflow.start_run(nested=True):
+        response = openai.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that extracts API endpoint information from Swagger UI HTML. Return only valid JSON without any markdown formatting or additional text."},
+                {"role": "user", "content": prompt_text}
+            ],
+            max_tokens=1500,
+            temperature=0.0,
+        )
+        completion_text = response.choices[0].message.content.strip()
+
+        # Track API usage
+        tracker.log_api_call(
+            model=model_name,
+            tokens=response.usage.total_tokens
+        )
+
+    # DEBUG: Print a small portion of the LLM response
+    print("[DEBUG] LLM raw response snippet:", completion_text[:200], "...")
+
+    # Clean up the response text
+    completion_text = completion_text.strip()
+    if completion_text.startswith("```json"):
+        completion_text = completion_text[7:]
+    if completion_text.endswith("```"):
+        completion_text = completion_text[:-3]
+    completion_text = completion_text.strip()
+
+    # Attempt to parse JSON
+    try:
+        data = json.loads(completion_text)
+        if not isinstance(data, list):
+            print("[WARN] Expected a list at top level. Got something else.")
+            return []
+        print("[DEBUG] Successfully parsed JSON with", len(data), "items.")  # DEBUG
+        return data
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] Invalid JSON from LLM. Could not parse: {str(e)}")
+        print("[DEBUG] Raw response:", completion_text)
+        return []
+
+
+#############################################
+# 4. GENERATE .FEATURE FILES
+#############################################
+
+def log_scenario_metrics(scenarios_data):
+    """Log scenario metrics to MLflow"""
+    with mlflow.start_run(nested=True):
+        # Convert scenarios data to DataFrame for analysis
+        df = pd.DataFrame(scenarios_data)
+        
+        # Calculate metrics
+        total_scenarios = len(df)
+        e2e_scenarios = len(df[df['type'] == 'e2e'])
+        basic_scenarios = len(df[df['type'] == 'basic'])
+        error_scenarios = len(df[df['type'] == 'error'])
+        
+        # Log metrics
+        mlflow.log_metric("total_scenarios", total_scenarios)
+        mlflow.log_metric("e2e_scenarios", e2e_scenarios)
+        mlflow.log_metric("basic_scenarios", basic_scenarios)
+        mlflow.log_metric("error_scenarios", error_scenarios)
+        
+        # Log scenario distribution as artifact
+        scenario_dist = df['type'].value_counts().to_dict()
+        mlflow.log_dict(scenario_dist, "scenario_distribution.json")
+        
+        # Log detailed scenarios as artifact
+        mlflow.log_dict(scenarios_data, "scenarios_details.json")
+
+def log_feature_generation_metrics(feature_files):
+    """Log feature generation metrics to MLflow"""
+    with mlflow.start_run(nested=True):
+        # Calculate metrics
+        total_features = len(feature_files)
+        feature_sizes = [len(open(f, 'r').read()) for f in feature_files]
+        avg_feature_size = sum(feature_sizes) / total_features if total_features > 0 else 0
+        
+        # Log metrics
+        mlflow.log_metric("total_features", total_features)
+        mlflow.log_metric("avg_feature_size", avg_feature_size)
+        
+        # Log feature files as artifacts
+        for feature_file in feature_files:
+            mlflow.log_artifact(feature_file, "features")
+
+def log_llm_metrics(model_name, tokens, cost):
+    """Log LLM usage metrics to MLflow"""
+    with mlflow.start_run(nested=True):
+        mlflow.log_metric(f"tokens_{model_name}", tokens)
+        mlflow.log_metric(f"cost_{model_name}", cost)
+        
+        # Log detailed LLM usage
+        llm_usage = {
+            "model": model_name,
+            "tokens": tokens,
+            "cost": cost,
+            "timestamp": datetime.now().isoformat()
+        }
+        mlflow.log_dict(llm_usage, f"llm_usage_{model_name}.json")
+
+def sanitize_name(name: str) -> str:
+    """Sanitize name for MLflow metrics and artifacts"""
+    return name.replace('/', '_').replace('{', '').replace('}', '').replace(' ', '_').strip('_')
+
+def generate_feature_file_for_endpoint(endpoint_info: dict, output_dir="features", model_name="gpt-3.5-turbo"):
+    """Generate a feature file for an endpoint with MLflow tracking"""
+    print("[DEBUG] Entering generate_feature_file_for_endpoint")
+
+    endpoint = endpoint_info.get("endpoint", "unknown")
+    method = endpoint_info.get("method", "GET")
+    parameters = endpoint_info.get("parameters", [])
+
+    print("[DEBUG] Generating feature for endpoint:", endpoint, "| method:", method)
+
+    # Sanitize endpoint name for MLflow
+    endpoint_clean = sanitize_name(endpoint)
+
+    prompt_text = f"""
+        Generate a comprehensive pytest-bdd Gherkin feature file for the endpoint "{endpoint}" with HTTP method "{method}".
+        Parameters: {json.dumps(parameters, indent=2)}.
+
+        Create meaningful scenarios that:
+        1. Test the basic functionality of the endpoint
+        2. Include edge cases and error conditions
+        3. Consider the business context and user workflows
+        4. Follow a logical flow of operations
+
+        Additionally, create two end-to-end scenarios that:
+        1. Demonstrate a complete user journey using this endpoint
+        2. Show integration with related endpoints
+        3. Include proper setup and cleanup steps
+        4. Handle dependencies between steps
+        5. Validate the complete flow
+
+        Format strictly as a .feature file with:
+        - Feature: A clear description of the endpoint's purpose
+        - Background: Common setup steps if needed
+        - Scenarios: Multiple test cases with Given/When/Then steps
+        - Use tables where appropriate for data variations
+        - Include tags for different types of scenarios (e.g., @e2e, @basic, @error)
+
+        For end-to-end scenarios, use the tag @e2e and include:
+        - Complete user journey steps
+        - Integration with other endpoints
+        - State management between steps
+        - Validation of the entire flow
+
+        Output only the feature text, no extra commentary.
+        """
+
+    with mlflow.start_run(nested=True):
+        # Enable LLM tracing
+        mlflow.openai.autolog()
+        
+        response = openai.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a test automation expert who creates comprehensive Gherkin feature files for API testing. Focus on creating dynamic, reusable scenarios that can be applied across different endpoints."},
+                {"role": "user", "content": prompt_text}
+            ],
+            max_tokens=2000,
+            temperature=0.0,
+        )
+        
+        feature_text = response.choices[0].message.content.strip()
+
+        # Log LLM metrics
+        tracker.log_api_call(
+            model=model_name,
+            tokens=response.usage.total_tokens
+        )
+        
+        # Extract scenarios for tracking with enhanced information
+        scenarios = []
+        current_scenario = None
+        for line in feature_text.split('\n'):
+            line = line.strip()
+            if line.startswith('@'):
+                # If we have a previous scenario, save it
+                if current_scenario:
+                    scenarios.append(current_scenario)
+                
+                # Start new scenario
+                tags = [tag.strip().lstrip('@') for tag in line.split()]
+                current_scenario = {
+                    'type': tags[0],  # Primary tag (e2e, basic, error)
+                    'tags': tags,     # All tags
+                    'endpoint': endpoint,
+                    'method': method,
+                    'steps': []
+                }
+            elif line.startswith(('Given', 'When', 'Then', 'And')):
+                if current_scenario:
+                    current_scenario['steps'].append(line)
+        
+        # Add the last scenario if exists
+        if current_scenario:
+            scenarios.append(current_scenario)
+
+    # Save to file
+    os.makedirs(output_dir, exist_ok=True)
+    filename = f"{output_dir}/test_{endpoint_clean}_{method}.feature"
+    
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(feature_text)
+    
+    print(f"[DEBUG] Generated feature file: {filename}")
+    print(f"[DEBUG] Generated {len(scenarios)} scenarios, including {len([s for s in scenarios if 'e2e' in s['tags']])} end-to-end scenarios")
+    
+    # Generate step definitions immediately after feature file
+    step_file = generate_step_definition_file(endpoint_info)
+    print(f"[DEBUG] Generated step definition file: {step_file}")
+    
+    return filename, scenarios
+
+def generate_step_definition_file(endpoint_info: dict):
+    """Generate a step definition file for a specific feature file."""
+    endpoint = endpoint_info.get("endpoint", "unknown")
+    method = endpoint_info.get("method", "GET")
+    
+    # Create step definitions directory if it doesn't exist
+    output_dir = "step_definitions"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Generate filename from endpoint using sanitized name
+    endpoint_clean = sanitize_name(endpoint)
+    filename = f"{output_dir}/test_{endpoint_clean}_{method.lower()}_steps.py"
+    
+    print(f"[DEBUG] Generating step definitions for {endpoint} {method}")
+    
+    with mlflow.start_run(nested=True):
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a test automation expert who creates step definitions for BDD feature files. Focus on creating reusable steps that can handle dynamic data and different scenarios."},
+                {"role": "user", "content": f"""
+                Create step definitions for the following API endpoint:
+                Endpoint: {endpoint}
+                Method: {method}
+                Parameters: {json.dumps(endpoint_info.get('parameters', []), indent=2)}
+                
+                Include steps for:
+                1. Setting up request data and headers
+                2. Making the API call
+                3. Validating response status and content
+                4. Error handling scenarios
+                5. Any specific business logic validations
+                6. End-to-end scenario support
+                7. Data transformation and validation
+                8. State management between steps
+                
+                Use pytest-bdd decorators and follow Python best practices.
+                Make steps reusable and self-documenting.
+                Include common steps that can be used across different scenarios.
+                """}
+            ],
+            max_tokens=2000,
+            temperature=0.0,
+        )
+        
+        step_definitions = response.choices[0].message.content.strip()
+        
+        # Track API usage
+        tracker.log_api_call(
+            model="gpt-3.5-turbo",
+            tokens=response.usage.total_tokens
+        )
+        
+        # Add common imports and setup
+        step_definitions = f'''import pytest
+from pytest_bdd import given, when, then, parsers
+import requests
+import json
+from typing import Dict, Any
+
+# Context to store data between steps
+context = {{}}
+
+# Common step definitions
+@given('I have valid credentials')
+def valid_credentials():
+    context['credentials'] = {{
+        'username': 'testuser',
+        'password': 'testpass'
+    }}
+
+@given('I have invalid credentials')
+def invalid_credentials():
+    context['credentials'] = {{
+        'username': 'invalid',
+        'password': 'invalid'
+    }}
+
+@given(parsers.parse('I have the following request data:\\n{{text}}'))
+def request_data(text):
+    context['request_data'] = json.loads(text)
+
+@given(parsers.parse('I have the following headers:\\n{{text}}'))
+def request_headers(text):
+    context['headers'] = json.loads(text)
+
+@when(parsers.parse('I make a {{method}} request to {{endpoint}}'))
+def make_request(method, endpoint):
+    url = f"https://bookstore.toolsqa.com{{endpoint}}"
+    response = requests.request(
+        method=method,
+        url=url,
+        headers=context.get('headers', {{}}),
+        json=context.get('request_data', {{}})
+    )
+    context['response'] = response
+
+@then(parsers.parse('the response status code should be {{status_code:d}}'))
+def check_status_code(status_code):
+    assert context['response'].status_code == status_code
+
+@then('the response should contain valid JSON')
+def check_json_response():
+    try:
+        context['response_json'] = context['response'].json()
+    except json.JSONDecodeError:
+        pytest.fail("Response is not valid JSON")
+
+@then(parsers.parse('the response should match the schema:\\n{{text}}'))
+def check_schema(text):
+    schema = json.loads(text)
+    # Add schema validation logic here
+    pass
+
+@then(parsers.parse('the response should contain:\\n{{text}}'))
+def check_response_data(text):
+    expected_data = json.loads(text)
+    response_data = context['response_json']
+    for key, value in expected_data.items():
+        assert response_data.get(key) == value
+
+{step_definitions}
+'''
+
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(step_definitions)
+        
+        print(f"[DEBUG] Created step definition file: {filename}")
+    
+    return filename
+
+def generate_crud_e2e_scenarios(endpoints: list) -> dict:
+    """
+    Generate CRUD end-to-end scenarios by analyzing endpoint patterns.
+    Returns a dictionary of feature files and their CRUD scenarios.
+    """
+    print("[DEBUG] Starting CRUD scenario generation")  # DEBUG STATEMENT
+    
+    # Group endpoints by their base path
+    endpoint_groups = {}
+    for endpoint in endpoints:
+        base_path = endpoint['endpoint'].split('/')[1]  # e.g., 'Account' or 'BookStore'
+        if base_path not in endpoint_groups:
+            endpoint_groups[base_path] = []
+        endpoint_groups[base_path].append(endpoint)
+    
+    print(f"[DEBUG] Found {len(endpoint_groups)} endpoint groups")  # DEBUG STATEMENT
+    crud_scenarios = {}
+    
+    # Generate CRUD scenarios for each group
+    for group_name, group_endpoints in endpoint_groups.items():
+        print(f"[DEBUG] Processing group: {group_name}")  # DEBUG STATEMENT
+        feature_name = f"test_{group_name.lower()}_crud_e2e.feature"
+        
+        # Analyze endpoints to find CRUD operations
+        crud_ops = {
+            'create': [e for e in group_endpoints if e['method'] == 'POST'],
+            'read': [e for e in group_endpoints if e['method'] == 'GET'],
+            'update': [e for e in group_endpoints if e['method'] in ['PUT', 'PATCH']],
+            'delete': [e for e in group_endpoints if e['method'] == 'DELETE']
+        }
+        
+        print(f"[DEBUG] Found CRUD operations for {group_name}: {[k for k, v in crud_ops.items() if v]}")  # DEBUG STATEMENT
+        
+        # Generate the feature file content with dynamic setup
+        content = f"""Feature: End-to-End CRUD Testing for {group_name} API
+
+Background:
+    Given the API service is running
+    And I am authenticated with valid credentials
+"""
+        
+        # Generate CRUD scenarios dynamically based on available operations
+        for operation, endpoints in crud_ops.items():
+            if endpoints:
+                endpoint = endpoints[0]  # Use the first matching endpoint
+                print(f"[DEBUG] Adding {operation} scenario for {endpoint['endpoint']}")  # DEBUG STATEMENT
+                
+                # Generate scenario based on operation type
+                if operation == 'create':
+                    content += f"""
+@e2e @crud @{operation}
+Scenario: Create {group_name} Resource
+    Given I prepare test data for {group_name.lower()} creation
+    When I send a POST request to "{endpoint['endpoint']}" with valid data
+    Then the response status code should be 200
+    And I store the created {group_name.lower()} ID
+"""
+                elif operation == 'read':
+                    content += f"""
+@e2e @crud @{operation}
+Scenario: Read {group_name} Resource
+    Given I have a valid {group_name.lower()} ID
+    When I send a GET request to "{endpoint['endpoint']}"
+    Then the response status code should be 200
+    And the response should contain valid {group_name.lower()} data
+"""
+                elif operation == 'update':
+                    content += f"""
+@e2e @crud @{operation}
+Scenario: Update {group_name} Resource
+    Given I have a valid {group_name.lower()} ID
+    And I prepare updated data for {group_name.lower()}
+    When I send a {endpoint['method']} request to "{endpoint['endpoint']}"
+    Then the response status code should be 200
+    And the {group_name.lower()} should be updated
+"""
+                elif operation == 'delete':
+                    content += f"""
+@e2e @crud @{operation}
+Scenario: Delete {group_name} Resource
+    Given I have a valid {group_name.lower()} ID
+    When I send a DELETE request to "{endpoint['endpoint']}"
+    Then the response status code should be 200
+    And the {group_name.lower()} should be deleted
+"""
+        
+        # Generate integration scenarios dynamically
+        integration_scenarios = []
+        for other_group in endpoint_groups:
+            if other_group != group_name:
+                print(f"[DEBUG] Checking integration with {other_group}")  # DEBUG STATEMENT
+                if any(e['method'] == 'POST' for e in endpoint_groups[other_group]):
+                    integration_scenarios.append(other_group)
+        
+        if integration_scenarios:
+            print(f"[DEBUG] Adding integration scenarios with: {integration_scenarios}")  # DEBUG STATEMENT
+            content += f"""
+@e2e @integration
+Scenario: {group_name} Integration with Other Resources
+    Given I have valid credentials
+    And I am authenticated
+"""
+            
+            for other_group in integration_scenarios:
+                content += f"""
+    # {other_group} Integration
+    When I create a new {other_group.lower()} resource
+    Then I can associate it with {group_name.lower()}
+    And I can verify the association
+"""
+            
+            content += """
+    # Cleanup
+    When I remove all created resources
+    Then all resources should be properly cleaned up
+"""
+        
+        crud_scenarios[feature_name] = content
+        print(f"[DEBUG] Generated feature file: {feature_name}")  # DEBUG STATEMENT
+    
+    return crud_scenarios
+
+def generate_all_feature_files(api_endpoints: list, model_name="gpt-3.5-turbo"):
+    """
+    For each endpoint (dict) in api_endpoints, generate a .feature file and its corresponding step definitions.
+    Also generates CRUD end-to-end scenarios.
+    """
+    print("[DEBUG] Entering generate_all_feature_files")
+    print("[DEBUG] Total endpoints to process:", len(api_endpoints))
+
+    feature_files = []
+    step_files = []
+    
+    # First, restore backed up feature files
+    if os.path.exists('features_backup'):
+        print("[DEBUG] Restoring feature files from backup")
+        os.system('cp -r features_backup/* features/')
+    
+    # Generate CRUD end-to-end scenarios
+    crud_scenarios = generate_crud_e2e_scenarios(api_endpoints)
+    
+    # Save CRUD scenarios
+    os.makedirs('features/crud', exist_ok=True)
+    for feature_name, content in crud_scenarios.items():
+        feature_path = f"features/crud/{feature_name}"
+        with open(feature_path, 'w') as f:
+            f.write(content)
+        feature_files.append(feature_path)
+        
+        # Generate step definitions for CRUD scenarios
+        step_file = generate_step_definition_file({
+            'endpoint': feature_name.replace('test_', '').replace('.feature', ''),
+            'method': 'CRUD',
+            'parameters': [],
+            'is_crud': True
+        })
+        step_files.append(step_file)
+    
+    # Log CRUD scenarios to MLflow
+    with mlflow.start_run(nested=True):
+        for feature_name, content in crud_scenarios.items():
+            mlflow.log_text(content, f"crud_scenarios/{feature_name}")
+    
+    return feature_files, step_files
+
+
+#############################################
+# 5. MASTER FUNCTION - SCRAPE, EXTRACT, GENERATE
+#############################################
+
+def scrape_and_generate_features(swagger_url: str, model_name="gpt-3.5-turbo"):
+    """Main function to scrape and generate features with enhanced MLflow tracking"""
+    print("[DEBUG] Entering scrape_and_generate_features")
+
+    with mlflow.start_run(run_name="Swagger_EndToEnd"):
+        # Log input parameters
+        mlflow.log_param("swagger_url", swagger_url)
+        mlflow.log_param("model_name", model_name)
+        
+        print(f"[DEBUG] Scraping HTML from: {swagger_url}")
+        html = get_swagger_html(swagger_url)
+        mlflow.log_metric("html_content_length", len(html))
+
+        print("Chunking the HTML into endpoint blocks...")
+        all_endpoints = []
+        for chunk_html in chunk_swagger_html(html):
+            chunk_data = extract_endpoint_info_via_llm(chunk_html, model_name=model_name)
+            all_endpoints.extend(chunk_data)
+
+        mlflow.log_metric("total_endpoints", len(all_endpoints))
+        
+        # Generate features and collect scenarios
+        all_scenarios = []
+        generated_features = []
+        
+        for endpoint in all_endpoints:
+            feature_file, scenarios = generate_feature_file_for_endpoint(endpoint, model_name=model_name)
+            generated_features.append(feature_file)
+            all_scenarios.extend(scenarios)
+        
+        # Log all metrics and artifacts
+        log_scenario_metrics(all_scenarios)
+        log_feature_generation_metrics(generated_features)
+        
+        # Log final summary
+        summary = {
+            "total_endpoints": len(all_endpoints),
+            "total_features": len(generated_features),
+            "total_scenarios": len(all_scenarios),
+            "timestamp": datetime.now().isoformat()
+        }
+        mlflow.log_dict(summary, "generation_summary.json")
+        
+        return generated_features, all_scenarios
+
+
+#############################################
+# TEST SECTION
+#############################################
+
+if __name__ == "__main__":
+    try:
+        # Test URL
+        test_url = "https://bookstore.toolsqa.com/swagger/"
+        
+        print("\n=== Scraping Swagger API and Extracting Endpoints ===")
+        # First, get the endpoints from Swagger
+        features, all_endpoints = scrape_and_generate_features(test_url)
+        
+        print("\n=== Generating CRUD End-to-End Scenarios ===")
+        # Then generate CRUD scenarios using the extracted endpoints
+        crud_features, step_files = generate_all_feature_files(all_endpoints)
+        
+        print("\nGeneration Summary:")
+        print(f"Total Features Generated: {len(features) + len(crud_features)}")
+        print(f"Total Step Files Generated: {len(step_files)}")
+        print(f"Total Endpoints Processed: {len(all_endpoints)}")
+        
+        # End tracking and log final metrics
+        tracker.end_run()
+        
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        tracker.end_run()  # Ensure we log metrics even on failure

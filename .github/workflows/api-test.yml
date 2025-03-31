@@ -1,0 +1,83 @@
+name: API Test Suite
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run every Sunday at midnight
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Check Swagger API Changes
+      id: swagger-check
+      run: |
+        # Store current Swagger content
+        curl -s https://bookstore.toolsqa.com/swagger/ > current_swagger.json
+        
+        # Compare with previous version if exists
+        if [ -f previous_swagger.json ]; then
+          if ! cmp -s current_swagger.json previous_swagger.json; then
+            echo "::set-output name=api_changed::true"
+          else
+            echo "::set-output name=api_changed::false"
+          fi
+        else
+          echo "::set-output name=api_changed::true"
+        fi
+        
+        # Save current version for next run
+        mv current_swagger.json previous_swagger.json
+    
+    - name: Generate Test Cases
+      if: steps.swagger-check.outputs.api_changed == 'true'
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        # Create local mlruns directory for artifact storage
+        mkdir -p mlruns/0
+        export MLFLOW_TRACKING_URI="file:$(pwd)/mlruns"
+        python main.py
+    
+    - name: Run Tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        pytest features/ --html=report.html
+    
+    - name: Upload Test Report
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-report
+        path: |
+          report.html
+          features/crud/*.feature
+    
+    - name: Upload MLflow Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: mlflow-artifacts
+        path: |
+          mlruns/
+          api_cost_tracking.txt
+    
+    - name: Upload Generated Features
+      uses: actions/upload-artifact@v2
+      with:
+        name: generated-features
+        path: |
+          features/
+          step_definitions/ 

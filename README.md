@@ -1,44 +1,47 @@
-# API Test Generator with MLflow Tracking
+# API Test Generator
 
-This project automatically generates API test suites from Swagger UI documentation using LLMs (GPT-3.5/GPT-4) and tracks all operations using MLflow.
-
-## Features
-
-- 🔄 Automatic scraping of Swagger UI documentation
-- 🤖 LLM-powered endpoint extraction and test generation
-- 📊 Comprehensive MLflow tracking of:
-  - API costs per model
-  - Token usage
-  - Execution times
-  - Test results
-- 📝 BDD-style test generation with Gherkin syntax
-- 🔄 CI/CD pipeline with GitHub Actions
-- 📈 Visual reporting and metrics
+A Python-based tool that automatically generates pytest-bdd test suites from Swagger/OpenAPI documentation. The tool uses OpenAI's GPT models to generate comprehensive test scenarios and step definitions.
 
 ## Project Structure
 
 ```
-.
-├── features/                    # Generated BDD feature files
-├── step_definitions/           # Generated step definition files
-├── reports/                    # Test execution reports
-├── mlruns/                     # MLflow tracking data
-├── docs/                       # Documentation and visualizations
-├── .github/
-│   └── workflows/
-│       └── ci.yml             # CI/CD pipeline
-├── main.py                     # Main script
-├── mlflow_tracking.py         # MLflow tracking module
-├── pytest.ini                 # Pytest configuration
-└── requirements.txt           # Project dependencies
+api_test_generator/
+├── src/
+│   ├── api/
+│   │   └── swagger.py          # Swagger UI scraping and parsing
+│   ├── config/
+│   │   └── settings.py         # Configuration and environment setup
+│   ├── generators/
+│   │   ├── feature_generator.py # Feature file generation
+│   │   ├── step_generator.py    # Step definition generation
+│   │   ├── crud_generator.py    # CRUD scenario generation
+│   │   └── conftest_generator.py # Pytest configuration generator
+│   └── utils/
+│       └── validators.py        # Parameter validation utilities
+├── tests/
+│   ├── features/              # Generated feature files
+│   │   └── crud/             # CRUD scenario feature files
+│   ├── steps/                # Generated step definitions
+│   └── reports/              # Test execution reports
+├── archive/                  # Archived/unused files
+├── requirements.txt          # Project dependencies
+├── pytest.ini               # Pytest configuration
+├── conftest.py             # Pytest fixtures and configuration
+└── .env                    # Environment variables
 ```
 
-## Setup
+## Prerequisites
+
+- Python 3.8 or higher
+- OpenAI API key
+- pip or pipenv for package management
+
+## Installation
 
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd <repository-name>
+cd api_test_generator
 ```
 
 2. Install dependencies:
@@ -46,129 +49,111 @@ cd <repository-name>
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables:
-   - Create a `.env` file locally with:
-     ```
-     OPENAI_API_KEY=your_openai_api_key
-     MLFLOW_TRACKING_URI=your_mlflow_uri
-     ```
-   - For GitHub Actions, add these as repository secrets:
-     - Go to Settings > Secrets and Variables > Actions
-     - Add `OPENAI_API_KEY` and `MLFLOW_TRACKING_URI`
+3. Create a `.env` file in the project root:
+```env
+OPENAI_API_KEY=your_api_key_here
+API_AUTH_TOKEN=your_auth_token_here  # Optional
+API_BASE_URL=your_api_base_url       # Required
+```
 
 ## Usage
 
-Run the main script to generate tests:
+### Generating Tests
+
+Run the main script with a Swagger UI URL:
+
 ```bash
-python main.py
+PYTHONPATH=$PYTHONPATH:. python src/main.py --swagger-url "https://your-api-url/swagger/" --model "gpt-3.5-turbo"
 ```
 
 This will:
-1. Scrape the Swagger UI
-2. Extract endpoint information
-3. Generate feature files
-4. Create step definitions
-5. Track all operations in MLflow
+1. Create necessary test directories under `tests/`
+2. Generate `conftest.py` with proper pytest-bdd configuration
+3. Scrape the Swagger UI documentation
+4. Generate feature files and step definitions
+5. Create CRUD scenarios and integration tests
 
-## MLflow Tracking
+### Directory Structure
 
-### Metrics Tracked
+The generator creates the following structure under `tests/`:
+- `features/` - Contains generated feature files
+  - `crud/` - Contains end-to-end CRUD scenario features
+- `steps/` - Contains step definition files
+- `reports/` - Contains test execution reports
 
-1. **API Costs**
-   - Cost per model (GPT-3.5/GPT-4)
-   - Total cost per run
-   - Cost per API call
+### Running Tests
 
-2. **Token Usage**
-   - Total tokens used
-   - Tokens per API call
-   - Token usage rate (tokens/second)
+Execute the generated tests using pytest:
 
-3. **Execution Metrics**
-   - Total execution time
-   - Time per operation
-   - Success/failure rates
+```bash
+pytest tests/features -v --html=tests/reports/report.html
+```
 
-### Visualizations
+### Test Reports
 
-1. **Cost Over Time**
-   ![Cost Over Time](docs/cost_over_time.png)
-   - Shows cumulative API costs during execution
-   - Helps identify cost-intensive operations
+- HTML reports are generated in `tests/reports/report.html`
+- Console output includes detailed test execution logs
+- MLflow tracking is enabled for test generation metrics
 
-2. **API Usage Distribution**
-   ![API Usage](docs/api_usage.png)
-   - Displays token usage and API call counts
-   - Helps optimize token usage
+### MLflow Integration
 
-3. **Cost Breakdown**
-   ![Cost Breakdown](docs/cost_breakdown.png)
-   - Shows cost distribution across different operations
-   - Helps identify cost drivers
+The test generation process is tracked using MLflow:
+- Experiment name: "Swagger_Test_Generation"
+- Tracked parameters:
+  - swagger_url
+  - model_name
 
-4. **Model-specific Costs**
-   ![Model Costs](docs/model_costs.png)
-   - Distribution of costs across different models
-   - Helps optimize model selection
+## Features
 
-5. **Token Usage by Model**
-   ![Model Tokens](docs/model_tokens.png)
-   - Token consumption per model
-   - Helps identify token-intensive operations
+- Dynamic test generation from Swagger/OpenAPI documentation
+- Generic step definitions that work with any REST API
+- Automatic schema validation based on API documentation
+- Comprehensive CRUD scenario generation
+- Configurable test generation using OpenAI models
+- MLflow integration for tracking test generation metrics
+- HTML test reports with detailed execution information
 
-## CI/CD Pipeline
-
-The GitHub Actions workflow:
-
-1. **Test Job**
-   - Runs on every push and pull request
-   - Sets up Python environment
-   - Installs dependencies
-   - Runs tests with MLflow tracking
-   - Generates HTML reports
-   - Uploads artifacts
-
-2. **Deploy Job**
-   - Runs only on main branch
-   - Deploys to production
-   - Tracks deployment metrics
-   - Reports success/failure
+## Configuration
 
 ### Environment Variables
 
-Required GitHub Secrets:
 - `OPENAI_API_KEY`: Your OpenAI API key
-- `MLFLOW_TRACKING_URI`: Your MLflow tracking server URI
+- `API_AUTH_TOKEN`: Authentication token for the API (if required)
+- `API_BASE_URL`: Base URL of the API
 
-## Test Reports
+### Pytest Configuration
 
-Test execution generates two types of reports:
+The generated `conftest.py` includes:
+- Common fixtures for API requests
+- Shared step definitions
+- Proper pytest-bdd configuration
+- Environment variable handling
 
-1. **HTML Report** (`reports/report.html`)
-   - Detailed test results
-   - Test execution time
-   - Pass/fail statistics
-   - Error details
+### Test Generation
 
-2. **BDD Report** (`reports/bdd_report.html`)
-   - Feature file execution results
-   - Step definition coverage
-   - Scenario outcomes
+The generator creates:
+- Feature files with Gherkin syntax
+- Step definitions with proper pytest-bdd decorators
+- Schema-aware response validation
+- Error handling and authentication checks
+- CRUD operation scenarios
 
-## Cost Tracking
+## Troubleshooting
 
-The system tracks costs per model:
+1. OpenAI API Issues:
+   - Verify your API key in `.env`
+   - Check API rate limits
+   - Ensure model availability
 
-| Model | Cost per 1K tokens |
-|-------|-------------------|
-| GPT-3.5-turbo | $0.002 |
-| GPT-4 | $0.03 |
+2. Test Generation Issues:
+   - Check Swagger UI accessibility
+   - Verify JSON response format
+   - Check log output for errors
 
-Costs are tracked in real-time and visualized in MLflow. The system provides:
-- Per-model cost breakdown
-- Token usage analysis
-- Cost optimization recommendations
-- Historical cost trends
+3. Test Execution Issues:
+   - Review test reports in `tests/reports/`
+   - Check console output for errors
+   - Verify environment variables
 
 ## Contributing
 
@@ -178,6 +163,3 @@ Costs are tracked in real-time and visualized in MLflow. The system provides:
 4. Push to the branch
 5. Create a Pull Request
 
-## License
-
-MIT License - see LICENSE file for details 
